@@ -1,23 +1,50 @@
+/**
+ * @file mpu6050.c
+ * @brief MPU6050 6-axis IMU Driver
+ */
+
 #include "mpu6050.h"
 #include <math.h>
-HAL_StatusTypeDef MPU6050_Init(MPU6050_t *mpu, I2C_HandleTypeDef *hi2c) {
-    mpu->hi2c = hi2c;
 
+/**
+ * @brief Initialize MPU6050 sensor
+ * @param[in,out] mpu MPU6050 Structure
+ * @param[in] hi2c I2C Handle
+ * @return HAL_OK if successful
+ */
+HAL_StatusTypeDef MPU6050_Init(MPU6050_t *mpu, I2C_HandleTypeDef *hi2c) {
+	// Check for NULL Pointers
+	if(mpu == NULL || hi2c == NULL){
+		return HAL_ERROR;
+	}
+
+    mpu->hi2c = hi2c;
     HAL_StatusTypeDef ret;
     uint8_t who_am_i = 0;
-    ret = HAL_I2C_Mem_Read(hi2c, MPU6050_ADDR, WHO_AM_I, 1, &who_am_i, 1, HAL_MAX_DELAY);
-    if (ret != HAL_OK || who_am_i != 0x68) return HAL_ERROR;
 
-    uint8_t enable = 0x00;
-    ret = HAL_I2C_Mem_Write(hi2c, MPU6050_ADDR, PWR_MGMT_1, 1, &enable, 1, HAL_MAX_DELAY);
+    // Verify sensor connection by reading WHO_AM_I register
+    ret = HAL_I2C_Mem_Read(hi2c, MPU6050_ADDR, MPU6050_REG_WHO_AM_I, 1, &who_am_i, 1, HAL_MAX_DELAY);
+    if (ret != HAL_OK || who_am_i != MPU6050_DEVICE_ID) return HAL_ERROR;
+
+    // Power up sensor by clearing sleep bit in PWR_MGMT_1 register
+    uint8_t pwr_mgmt = 0x00;
+    ret = HAL_I2C_Mem_Write(hi2c, MPU6050_ADDR, MPU6050_REG_PWR_MGMT_1, 1, &pwr_mgmt, 1, HAL_MAX_DELAY);
+    if (ret != HAL_OK || who_am_i != MPU6050_DEVICE_ID) return HAL_ERROR;
+
     return ret;
 }
 
-
-// Configure MPU6050 with user specified gyroscope range and accelerometer range
+/**
+ * @brief Configure measurement ranges for accelerometer and gyroscope
+ */
 HAL_StatusTypeDef MPU6050_Config(MPU6050_t *mpu, uint8_t gyro_range, uint8_t accel_range) {
-    HAL_StatusTypeDef ret;
+    // Check for NULL Pointer
+    if(mpu == NULL){
+    	return HAL_ERROR;
+    }
 
+    // Set measurement ranges by writing to GYRO_CONFIG and ACCEL_CONFIG registers
+    HAL_StatusTypeDef ret;
     mpu->gyro_range = gyro_range;
     mpu->accel_range = accel_range;
 
@@ -48,16 +75,29 @@ HAL_StatusTypeDef MPU6050_Config(MPU6050_t *mpu, uint8_t gyro_range, uint8_t acc
     return HAL_OK;
 }
 
-// Configure MPU6050 EXT_SYNC and DLPF registers
+/**
+ * @brief Configure MPU6050 EXT_SYNC and DLPF registers
+ */
+
 HAL_StatusTypeDef MPU6050_SetConfig(MPU6050_t *mpu, uint8_t ext_sync, uint8_t dlpf_level) {
-    uint8_t data = (ext_sync << 3) | (dlpf_level & 0x07);
-    return HAL_I2C_Mem_Write(mpu->hi2c, MPU6050_ADDR, CONFIG, 1, &data, 1, HAL_MAX_DELAY);
+	// Check for NULL Pointer
+	if(mpu == NULL){
+		return HAL_ERROR;
+	}
+	uint8_t data = (ext_sync << 3) | (dlpf_level & 0x07);
+    return HAL_I2C_Mem_Write(mpu->hi2c, MPU6050_ADDR, MPU6050_REG_CONFIG, 1, &data, 1, HAL_MAX_DELAY);
 }
 
-// Retrieve data from the sensor by reading its memory register
+/**
+ * @brief Read sensor data
+ */
 HAL_StatusTypeDef MPU6050_ReadData(MPU6050_t *mpu, MPU6050_Data_t *data) {
+	// Check for NULL Pointer
+	if(mpu == NULL || data == NULL){
+		return HAL_ERROR;
+	}
     uint8_t raw[14];
-    HAL_StatusTypeDef ret = HAL_I2C_Mem_Read(mpu->hi2c, MPU6050_ADDR, ACCEL_XOUT_H, 1, raw, 14, HAL_MAX_DELAY);
+    HAL_StatusTypeDef ret = HAL_I2C_Mem_Read(mpu->hi2c, MPU6050_ADDR, MPU6050_REG_ACCEL_XOUT_H, 1, raw, 14, HAL_MAX_DELAY);
     if (ret != HAL_OK) return ret;
 
     // Raw data
@@ -69,7 +109,7 @@ HAL_StatusTypeDef MPU6050_ReadData(MPU6050_t *mpu, MPU6050_Data_t *data) {
     data->gy = (int16_t)(raw[10] << 8 | raw[11]);
     data->gz = (int16_t)(raw[12] << 8 | raw[13]);
 
-    // Formatted data
+    // Scale to physical units (g, deg, dps)
     data->ax_g = data->ax / mpu->accel_sensitivity;
     data->ay_g = data->ay / mpu->accel_sensitivity;
     data->az_g = data->az / mpu->accel_sensitivity;
@@ -81,12 +121,22 @@ HAL_StatusTypeDef MPU6050_ReadData(MPU6050_t *mpu, MPU6050_Data_t *data) {
     return HAL_OK;
 }
 
-
-// Calculate Pitch and Roll
+/**
+ * @brief Calculate Pitch and Roll
+ */
 float radians_to_degrees(float rad) {
     return rad * (180.0f / M_PI);
 }
+
+/**
+ * @brief Calculate pitch and roll from accelerometer
+ */
 void calculate_pitch_roll(float ax, float ay, float az, float* pitch, float* roll) {
+	// Check for NULL Pointer
+	if(pitch == NULL || roll == NULL){
+		return;
+	}
+
     *roll  = radians_to_degrees(atan2f(ay, az));
     *pitch = radians_to_degrees(atan2f(-ax, sqrtf(ay * ay + az * az)));
 }
