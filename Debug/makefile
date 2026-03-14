@@ -34,34 +34,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := 02_MPU6050_wakeup
+BUILD_ARTIFACT_NAME := stm32-mpu6050-driver
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-02_MPU6050_wakeup.elf \
+stm32-mpu6050-driver.elf \
 
 MAP_FILES += \
-02_MPU6050_wakeup.map \
+stm32-mpu6050-driver.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-02_MPU6050_wakeup.list \
+stm32-mpu6050-driver.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: 02_MPU6050_wakeup.elf secondary-outputs
+main-build: stm32-mpu6050-driver.elf secondary-outputs
 
 # Tool invocations
-02_MPU6050_wakeup.elf 02_MPU6050_wakeup.map: $(OBJS) $(USER_OBJS) C:\Users\Chinmay\ Benni\Documents\Microcontrollers\STM32\Balancing_bot\02_MPU6050_wakeup\STM32F411CEUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "02_MPU6050_wakeup.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Chinmay Benni\Documents\Microcontrollers\STM32\Balancing_bot\02_MPU6050_wakeup\STM32F411CEUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="02_MPU6050_wakeup.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+stm32-mpu6050-driver.elf stm32-mpu6050-driver.map: $(OBJS) $(USER_OBJS) D:\Dev\embedded\Github_repos\stm32\stm32-mpu6050-driver\STM32F411CEUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "stm32-mpu6050-driver.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\Dev\embedded\Github_repos\stm32\stm32-mpu6050-driver\STM32F411CEUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32-mpu6050-driver.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -70,14 +70,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-02_MPU6050_wakeup.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "02_MPU6050_wakeup.list"
+stm32-mpu6050-driver.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "stm32-mpu6050-driver.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) 02_MPU6050_wakeup.elf 02_MPU6050_wakeup.list 02_MPU6050_wakeup.map default.size.stdout
+	-$(RM) default.size.stdout stm32-mpu6050-driver.elf stm32-mpu6050-driver.list stm32-mpu6050-driver.map
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)

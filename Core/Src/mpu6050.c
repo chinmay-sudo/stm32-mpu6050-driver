@@ -5,6 +5,7 @@
 
 #include "mpu6050.h"
 #include <math.h>
+#include <string.h>
 
 /**
  * @brief Initialize MPU6050 sensor
@@ -17,7 +18,7 @@ HAL_StatusTypeDef MPU6050_Init(MPU6050_t *mpu, I2C_HandleTypeDef *hi2c) {
 	if(mpu == NULL || hi2c == NULL){
 		return HAL_ERROR;
 	}
-
+	memset(mpu, 0, sizeof(MPU6050_t)); // Set all struct values to 0
     mpu->hi2c = hi2c;
     HAL_StatusTypeDef ret;
     uint8_t who_am_i = 0;
@@ -48,10 +49,10 @@ HAL_StatusTypeDef MPU6050_Config(MPU6050_t *mpu, uint8_t gyro_range, uint8_t acc
     mpu->gyro_range = gyro_range;
     mpu->accel_range = accel_range;
 
-    ret = HAL_I2C_Mem_Write(mpu->hi2c, MPU6050_ADDR, GYRO_CONFIG, 1, &gyro_range, 1, HAL_MAX_DELAY);
+    ret = HAL_I2C_Mem_Write(mpu->hi2c, MPU6050_ADDR, MPU6050_REG_GYRO_CONFIG, 1, &gyro_range, 1, HAL_MAX_DELAY);
     if (ret != HAL_OK) return ret;
 
-    ret = HAL_I2C_Mem_Write(mpu->hi2c, MPU6050_ADDR, ACCEL_CONFIG, 1, &accel_range, 1, HAL_MAX_DELAY);
+    ret = HAL_I2C_Mem_Write(mpu->hi2c, MPU6050_ADDR, MPU6050_REG_ACCEL_CONFIG, 1, &accel_range, 1, HAL_MAX_DELAY);
     if (ret != HAL_OK) return ret;
 
     // Gyroscope sensitivity
@@ -78,7 +79,6 @@ HAL_StatusTypeDef MPU6050_Config(MPU6050_t *mpu, uint8_t gyro_range, uint8_t acc
 /**
  * @brief Configure MPU6050 EXT_SYNC and DLPF registers
  */
-
 HAL_StatusTypeDef MPU6050_SetConfig(MPU6050_t *mpu, uint8_t ext_sync, uint8_t dlpf_level) {
 	// Check for NULL Pointer
 	if(mpu == NULL){
@@ -110,13 +110,13 @@ HAL_StatusTypeDef MPU6050_ReadData(MPU6050_t *mpu, MPU6050_Data_t *data) {
     data->gz = (int16_t)(raw[12] << 8 | raw[13]);
 
     // Scale to physical units (g, deg, dps)
-    data->ax_g = data->ax / mpu->accel_sensitivity;
-    data->ay_g = data->ay / mpu->accel_sensitivity;
-    data->az_g = data->az / mpu->accel_sensitivity;
+    data->ax_g = (data->ax - mpu->accel_offset[0]) / mpu->accel_sensitivity;
+    data->ay_g = (data->ay - mpu->accel_offset[1]) / mpu->accel_sensitivity;
+    data->az_g = (data->az - mpu->accel_offset[2]) / mpu->accel_sensitivity;
     data->temp_deg = (data->temp_raw / 340.0f) + 36.53f;
-    data->gx_dps = data->gx / mpu->gyro_sensitivity;
-    data->gy_dps = data->gy / mpu->gyro_sensitivity;
-    data->gz_dps = data->gz / mpu->gyro_sensitivity;
+    data->gx_dps = (data->gx - mpu->gyro_offset[0]) / mpu->gyro_sensitivity;
+    data->gy_dps = (data->gy - mpu->gyro_offset[1]) / mpu->gyro_sensitivity;
+    data->gz_dps = (data->gz - mpu->gyro_offset[2]) / mpu->gyro_sensitivity;
 
     return HAL_OK;
 }
@@ -141,9 +141,79 @@ void calculate_pitch_roll(float ax, float ay, float az, float* pitch, float* rol
     *pitch = radians_to_degrees(atan2f(-ax, sqrtf(ay * ay + az * az)));
 }
 
+/**
+ * @brief Set offset values for accelerometer and gyroscope of MPU6050
+ */
+HAL_StatusTypeDef MPU6050_SetOffsets(MPU6050_t *mpu,
+		float ax_offset, float ay_offset, float az_offset,
+		float gx_offset, float gy_offset, float gz_offset ){
+	// Set Accelerometer offsets
+	mpu->accel_offset[0] = ax_offset;
+	mpu->accel_offset[1] = ay_offset;
+	mpu->accel_offset[2] = az_offset;
+
+	// Set Gyroscope offsets
+	mpu->gyro_offset[0] = gx_offset;
+	mpu->gyro_offset[1] = gy_offset;
+	mpu->gyro_offset[2] = gz_offset;
+
+	// Set calibrated flag to high
+	mpu->calibrated_flag = 1;
+
+	return HAL_OK;
+
+}
 
 
+/**
+ * @brief Calibrate and set offset values  for accelerometer and gyroscope of MPU6050
+ */
+HAL_StatusTypeDef MPU6050_Calibrate(MPU6050_t *mpu){
+	// Check for NULL Pointer
+	if(mpu == NULL){
+		return HAL_ERROR;
+	}
 
+	// Sample 1000 samples
+	MPU6050_Data_t data;
+	float accel_samples[3] = {0};
+	float gyro_samples[3] = {0};
+	uint16_t samples = 1000;
+
+	for(uint16_t sample = 0; sample<samples; sample++){
+		// Check if MPU6050 raw data is being read
+		if(MPU6050_ReadData(mpu, &data) != HAL_OK){
+			return HAL_ERROR;
+		}
+
+		// Obtain raw data of accelerometer and sum it up
+		accel_samples[0] += data.ax;
+		accel_samples[1] += data.ay;
+		accel_samples[2] += data.az;
+
+		// Obtain raw data of gyroscope and sum it up
+		gyro_samples[0] += data.gx;
+		gyro_samples[1] += data.gy;
+		gyro_samples[2] += data.gz;
+
+		HAL_Delay(10);
+	}
+
+	// Set Accelerometer offsets
+	mpu->accel_offset[0] = accel_samples[0]/samples;
+	mpu->accel_offset[1] = accel_samples[1]/samples;
+	mpu->accel_offset[2] = accel_samples[2]/samples - mpu->accel_sensitivity;
+
+	// Set Gyroscope offsets
+	mpu->gyro_offset[0] = gyro_samples[0]/samples;
+	mpu->gyro_offset[1] = gyro_samples[1]/samples;
+	mpu->gyro_offset[2] = gyro_samples[2]/samples;
+
+	// Set calibrated flag to high
+	mpu->calibrated_flag = 1;
+
+	return HAL_OK;
+}
 
 
 

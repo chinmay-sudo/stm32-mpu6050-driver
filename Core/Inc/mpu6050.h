@@ -50,6 +50,9 @@ typedef struct {
 	uint8_t gyro_range;
 	float accel_sensitivity; // LSB/g
 	float gyro_sensitivity;  // LSB(degree/s)
+	float accel_offset[3];
+	float gyro_offset[3];
+	uint8_t calibrated_flag;
 } MPU6050_t;
 
 //======================================================
@@ -72,6 +75,11 @@ HAL_StatusTypeDef MPU6050_Init(MPU6050_t *mpu, I2C_HandleTypeDef *hi2c);
 HAL_StatusTypeDef MPU6050_Config(MPU6050_t *mpu,uint8_t gyro_range,uint8_t accel_range);
 HAL_StatusTypeDef MPU6050_SetConfig(MPU6050_t *mpu, uint8_t ext_sync, uint8_t dlpf_level);
 HAL_StatusTypeDef MPU6050_ReadData(MPU6050_t *mpu, MPU6050_Data_t *data);
+HAL_StatusTypeDef MPU6050_SetOffsets(MPU6050_t *mpu,
+		float ax_offset, float ay_offset, float az_offset,
+		float gx_offset, float gy_offset, float gz_offset
+		);
+HAL_StatusTypeDef MPU6050_Calibrate(MPU6050_t *mpu);
 float radians_to_degrees(float rad);
 void calculate_pitch_roll(float ax, float ay, float az, float* pitch, float* roll);
 #endif

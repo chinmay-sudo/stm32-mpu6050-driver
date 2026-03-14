@@ -21,7 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include "mpu6050.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -119,14 +120,15 @@ int main(void)
   /* USER CODE BEGIN 2 */
   // Initialize MPU6050
   if (MPU6050_Init(&mpu, &hi2c2) != HAL_OK) {
-          printf("MPU6050 init failed!\n");
+          printf("MPU6050 initialization failed!\n");
           Error_Handler();
       }
 
-      if (MPU6050_Config(&mpu, MPU6050_GYRO_1000, MPU6050_ACCEL_4G) != HAL_OK) {
-          printf("MPU6050 config failed!\n");
-          Error_Handler();
-      }
+  if (MPU6050_Config(&mpu, MPU6050_GYRO_1000, MPU6050_ACCEL_4G) != HAL_OK) {
+	  printf("MPU6050 configuration failed!\n");
+	  Error_Handler();
+  }
+  MPU6050_Calibrate(&mpu);
   /* USER CODE END 2 */
 
   /* Infinite loop */
