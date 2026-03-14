@@ -17,10 +17,11 @@
 ## Usage
 ```c
 MPU6050_t mpu;
+MPU6050_Data_t data;
 MPU6050_Init(&mpu, &hi2c1);
 MPU6050_Config(&mpu, MPU6050_GYRO_250, MPU6050_ACCEL_2G);
+MPU6050_Calibrate(&mpu);
 
-MPU6050_Data_t data;
 while(1) {
     MPU6050_ReadData(&mpu, &data);
     printf("Accel: %.2f g\n", data.ax_g);
